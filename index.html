@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sort Rush — Fast Sorting Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0f1a;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #header {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 480px;
+      padding: 16px 20px 8px;
+    }
+
+    .stat-box {
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+    }
+    #best-score-val { color: #f5c542; }
+
+    #lives-display {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 22px;
+    }
+
+    #game-area {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px 20px;
+    }
+
+    /* Düşən element */
+    #falling-zone {
+      width: 100%;
+      height: 260px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      background: #161628;
+    }
+
+    .falling-item {
+      position: absolute;
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.1s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .falling-item:active { transform: translateX(-50%) scale(0.92); }
+
+    /* Qutular */
+    #buckets {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+      margin-top: 12px;
+    }
+
+    .bucket {
+      flex: 1;
+      max-width: 100px;
+      height: 90px;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      font-weight: 800;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: transform 0.1s, border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .bucket:active { transform: scale(0.94); }
+    .bucket.correct-flash {
+      animation: correctFlash 0.25s ease;
+    }
+    .bucket.wrong-flash {
+      animation: wrongFlash 0.3s ease;
+    }
+
+    @keyframes correctFlash {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+    @keyframes wrongFlash {
+      0%,100% { transform: translateX(0); }
+      25%     { transform: translateX(-8px); }
+      75%     { transform: translateX(8px); }
+    }
+
+    /* Kombo göstəricisi */
+    #combo-display {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #f5c542;
+      transition: opacity 0.3s;
+    }
+
+    /* Sürət çubuğu */
+    #speed-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: #222240;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    #speed-bar {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #4f46e5, #a855f7);
+      transition: width 0.4s ease;
+    }
+
+    /* Ekranlar */
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: rgba(10,10,20,0.97);
+      z-index: 100;
+      padding: 24px;
+      text-align: center;
+    }
+    .screen.hidden { display: none; }
+
+    .screen h1 { font-size: 42px; font-weight: 900; }
+    .screen h2 { font-size: 32px; font-weight: 800; }
+    .screen p  { font-size: 16px; color: #aaa; max-width: 320px; line-height: 1.5; }
+
+    .btn {
+      padding: 16px 48px;
+      border-radius: 50px;
+      border: none;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: linear-gradient(135deg, #4f46e5, #a855f7); color: #fff; }
+    .btn-secondary {
+      background: transparent;
+      color: #888;
+      border: 2px solid #333;
+      font-size: 16px;
+      padding: 12px 32px;
+    }
+
+    #gameover-score { font-size: 64px; font-weight: 900; color: #a855f7; }
+    #gameover-best  { font-size: 16px; color: #f5c542; }
+
+    /* Reklam yeri */
+    #ad-banner {
+      width: 100%;
+      max-width: 480px;
+      height: 60px;
+      background: #1a1a2e;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+      font-size: 13px;
+      margin-top: 8px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Başlanğıc ekranı -->
+<div class="screen" id="start-screen">
+  <h1>⚡ Sort Rush</h1>
+  <p>Drop the falling number into the right bucket! Speed increases — can you keep up?</p>
+  <button class="btn btn-primary" onclick="startGame()">Play</button>
+  <div style="color:#666;font-size:14px">Best: <span id="start-best" style="color:#f5c542">0</span></div>
+</div>
+
+<!-- Oyun sonu ekranı -->
+<div class="screen hidden" id="gameover-screen">
+  <h2>Game Over!</h2>
+  <div id="gameover-score">0</div>
+  <div id="gameover-best"></div>
+  <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+  <button class="btn btn-secondary" onclick="showStart()">Home</button>
+</div>
+
+<!-- Oyun UI -->
+<div id="header">
+  <div class="stat-box">
+    <div class="stat-label">Score</div>
+    <div class="stat-value" id="score-display">0</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Lives</div>
+    <div id="lives-display">❤️ ❤️ ❤️</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Best</div>
+    <div class="stat-value" id="best-score-val">0</div>
+  </div>
+</div>
+
+<div id="game-area">
+  <div id="speed-bar-wrap"><div id="speed-bar" style="width:10%"></div></div>
+
+  <div id="falling-zone">
+    <div class="falling-item" id="falling-item" onclick="onItemClick()"></div>
+  </div>
+
+  <div id="combo-display"></div>
+
+  <div id="buckets">
+    <div class="bucket" id="bucket-0" onclick="chooseBucket(0)"></div>
+    <div class="bucket" id="bucket-1" onclick="chooseBucket(1)"></div>
+    <div class="bucket" id="bucket-2" onclick="chooseBucket(2)"></div>
+    <div class="bucket" id="bucket-3" onclick="chooseBucket(3)"></div>
+  </div>
+</div>
+
+<div id="ad-banner">[ Ad space — Google AdSense ]</div>
+
+<script>
+  // ── Rəng palitri ──
+  const COLORS = [
+    { bg: '#312e81', text: '#818cf8', border: '#4f46e5' },
+    { bg: '#701a75', text: '#e879f9', border: '#a855f7' },
+    { bg: '#0c4a6e', text: '#38bdf8', border: '#0284c7' },
+    { bg: '#064e3b', text: '#34d399', border: '#059669' },
+  ];
+
+  // ── Oyun vəziyyəti ──
+  let score = 0;
+  let lives = 3;
+  let combo = 0;
+  let speed = 1;         // px/frame
+  let gameRunning = false;
+  let animFrame = null;
+  let itemY = -80;       // düşən elementin Y mövqeyi
+  let currentValue = 0;  // düşən rəqəm
+  let bucketValues = []; // hər qutunun rəqəmi
+  let selectedByClick = false; // istifadəçi tıkladı?
+
+  const BASE_SPEED = 1.2;
+  const MAX_SPEED  = 5.5;
+
+  // ── Saxlama ──
+  function getBest() { return parseInt(localStorage.getItem('sortRushBest') || '0'); }
+  function saveBest(v) { localStorage.setItem('sortRushBest', v); }
+
+  // ── Ekranlar ──
+  function showStart() {
+    document.getElementById('start-screen').classList.remove('hidden');
+    document.getElementById('gameover-screen').classList.add('hidden');
+    document.getElementById('start-best').textContent = getBest();
+    if (animFrame) cancelAnimationFrame(animFrame);
+    gameRunning = false;
+  }
+
+  function showGameOver() {
+    gameRunning = false;
+    cancelAnimationFrame(animFrame);
+    const best = getBest();
+    if (score > best) saveBest(score);
+    document.getElementById('gameover-score').textContent = score;
+    const newBest = getBest();
+    document.getElementById('gameover-best').textContent =
+      score >= newBest ? '🏆 New Record!' : `Best: ${newBest}`;
+    document.getElementById('gameover-screen').classList.remove('hidden');
+  }
+
+  // ── Oyunu başlat ──
+  function startGame() {
+    score = 0; lives = 3; combo = 0; speed = BASE_SPEED;
+    selectedByClick = false;
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('gameover-screen').classList.add('hidden');
+    updateHUD();
+    spawnItem();
+    gameRunning = true;
+    loop();
+  }
+
+  // ── Yeni element ──
+  function spawnItem() {
+    // 4 fərqli rəqəm, qarışıq sırala
+    const nums = shuffle([1, 2, 3, 4]);
+    bucketValues = nums;
+    currentValue = nums[Math.floor(Math.random() * 4)];
+    itemY = -80;
+    selectedByClick = false;
+
+    const el = document.getElementById('falling-item');
+    const ci = currentValue - 1;
+    el.textContent = currentValue;
+    el.style.background = COLORS[ci].bg;
+    el.style.color = COLORS[ci].text;
+    el.style.boxShadow = `0 4px 24px ${COLORS[ci].border}88`;
+    el.style.top = itemY + 'px';
+    el.style.opacity = '1';
+
+    // Qutuları hazırla
+    for (let i = 0; i < 4; i++) {
+      const b = document.getElementById('bucket-' + i);
+      const ci2 = nums[i] - 1;
+      b.textContent = nums[i];
+      b.style.background = COLORS[ci2].bg;
+      b.style.color = COLORS[ci2].text;
+      b.style.borderColor = COLORS[ci2].border + '66';
+    }
+
+    updateSpeedBar();
+  }
+
+  // ── Əsas loop ──
+  function loop() {
+    if (!gameRunning) return;
+
+    itemY += speed;
+    const el = document.getElementById('falling-item');
+    el.style.top = itemY + 'px';
+
+    // Dibə çatdı — yanlış
+    const zoneH = document.getElementById('falling-zone').offsetHeight;
+    if (itemY > zoneH) {
+      handleWrong(-1); // zona dışına çıxdı
+    } else {
+      animFrame = requestAnimationFrame(loop);
+    }
+  }
+
+  // ── Tıklama: qutu seç ──
+  function chooseBucket(idx) {
+    if (!gameRunning || selectedByClick) return;
+    selectedByClick = true;
+    cancelAnimationFrame(animFrame);
+
+    const chosen = bucketValues[idx];
+    const bucket = document.getElementById('bucket-' + idx);
+
+    if (chosen === currentValue) {
+      handleCorrect(bucket);
+    } else {
+      handleWrong(idx);
+    }
+  }
+
+  // Item üzərinə tıklama (sadə hint)
+  function onItemClick() { /* visual only */ }
+
+  // ── Düzgün cavab ──
+  function handleCorrect(bucket) {
+    combo++;
+    const multiplier = combo >= 5 ? 2 : 1;
+    const gain = 10 * multiplier;
+    score += gain;
+    speed = Math.min(MAX_SPEED, BASE_SPEED + score / 80);
+
+    bucket.classList.add('correct-flash');
+    setTimeout(() => bucket.classList.remove('correct-flash'), 300);
+
+    showCombo(combo, multiplier);
+    updateHUD();
+    setTimeout(spawnItem, 200);
+    setTimeout(() => { if (gameRunning) loop(); }, 220);
+  }
+
+  // ── Yanlış / dibə çatdı ──
+  function handleWrong(bucketIdx) {
+    lives--;
+    combo = 0;
+    document.getElementById('combo-display').textContent = '';
+
+    if (bucketIdx >= 0) {
+      const b = document.getElementById('bucket-' + bucketIdx);
+      b.classList.add('wrong-flash');
+      setTimeout(() => b.classList.remove('wrong-flash'), 350);
+    }
+
+    updateHUD();
+
+    if (lives <= 0) {
+      setTimeout(showGameOver, 300);
+    } else {
+      setTimeout(spawnItem, 400);
+      setTimeout(() => { if (gameRunning) loop(); }, 420);
+    }
+  }
+
+  // ── HUD yenilə ──
+  function updateHUD() {
+    document.getElementById('score-display').textContent = score;
+    document.getElementById('best-score-val').textContent = Math.max(score, getBest());
+
+    const hearts = ['❤️ ❤️ ❤️', '❤️ ❤️ 🖤', '❤️ 🖤 🖤', '🖤 🖤 🖤'];
+    document.getElementById('lives-display').textContent = hearts[3 - lives] || '🖤 🖤 🖤';
+  }
+
+  function updateSpeedBar() {
+    const pct = Math.min(100, ((speed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED)) * 100);
+    document.getElementById('speed-bar').style.width = (10 + pct * 0.9) + '%';
+  }
+
+  function showCombo(c, mult) {
+    const el = document.getElementById('combo-display');
+    if (c >= 5) {
+      el.textContent = `🔥 ${c}x Combo! ×${mult}`;
+    } else if (c >= 3) {
+      el.textContent = `⚡ ${c}x Combo!`;
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  // ── Yardımçı ──
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // ── Başlat ──
+  document.getElementById('start-best').textContent = getBest();
+  document.getElementById('best-score-val').textContent = getBest();
+</script>
+
+</body>
+</html>
